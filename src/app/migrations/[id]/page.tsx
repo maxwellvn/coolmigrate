@@ -1,5 +1,6 @@
 "use client";
 import { use, useEffect, useRef, useState } from "react";
+import { Skeleton, Spinner, useUI } from "../../ui";
 
 type M = { id: number; status: string; title: string; log: string; result: string | null; request: string; state: string };
 const cls = (l: string) =>
@@ -10,6 +11,7 @@ const cls = (l: string) =>
 
 export default function MigrationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const ui = useUI();
   const [m, setM] = useState<M | null>(null);
   const [log, setLog] = useState("");
   const [status, setStatus] = useState("running");
@@ -34,22 +36,22 @@ export default function MigrationPage({ params }: { params: Promise<{ id: string
   }, [id, gen]);
   useEffect(() => { pre.current?.scrollTo(0, pre.current.scrollHeight); }, [log]);
 
-  const resume = async () => { await fetch(`/api/migrations/${id}/resume`, { method: "POST" }); setGen((g) => g + 1); };
+  const resume = async () => { const r = await fetch(`/api/migrations/${id}/resume`, { method: "POST" }); if (!r.ok) ui.toast("bad", (await r.json()).error); else ui.toast("info", "Resuming from the last checkpoint"); setGen((g) => g + 1); };
   const act = async (side: "source" | "destination", op: "stop" | "start" | "delete") => {
     let confirmWord: string | undefined;
     if (op === "delete") {
-      confirmWord = prompt(`This permanently deletes the ${side} app and its databases, including volumes. Type DELETE to confirm.`) ?? undefined;
-      if (confirmWord !== "DELETE") return;
-    } else if (!confirm(`${op} the ${side} app and databases?`)) return;
+      const v = await ui.prompt({ title: `Delete ${side} permanently?`, body: `Removes the ${side} app and its databases, including volumes, from Coolify. There is no undo.`, confirmText: "Delete", danger: true, input: { placeholder: "DELETE", mustEqual: "DELETE" } });
+      if (v !== "DELETE") return; confirmWord = v;
+    } else if (!(await ui.confirm({ title: `${op === "stop" ? "Stop" : "Start"} ${side}?`, body: op === "stop" ? "Containers stop; data and config stay. Start brings them back." : "Containers start again with their existing data.", confirmText: op === "stop" ? "Stop" : "Start", danger: op === "stop" }))) return;
     setBusy(`${op} ${side}`);
     const j = await fetch(`/api/migrations/${id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, op, confirm: confirmWord }) }).then((r) => r.json());
-    setBusy(""); if (j.error) alert(j.error); setGen((g) => g + 1);
+    setBusy(""); ui.toast(j.error ? "bad" : "ok", j.error ?? `${op} ${side}: ${(j.results ?? []).length} resource(s)`); setGen((g) => g + 1);
     // Coolify applies stop/start asynchronously; poll a few times so the badges catch up
     for (const t of [2000, 6000, 12000]) setTimeout(refreshLive, t);
   };
   useEffect(() => { if (status !== "running") refreshLive(); }, [status, gen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!m) return <p style={{ color: "var(--muted)" }}>Loading…</p>;
+  if (!m) return <div><div className="page-head"><div><Skeleton w={90} h={11} /><div className="mt-3"><Skeleton w={320} h={24} /></div></div></div><div className="log"><div className="panel-head"><Skeleton w={40} /></div><div className="p-4 space-y-2">{[0, 1, 2, 3, 4].map((i) => <div key={i}><Skeleton w={`${55 + (i * 17) % 40}%`} h={12} /></div>)}</div></div></div>;
   const req = JSON.parse(m.request), st = JSON.parse(m.state || "{}");
   const hasDest = !!st.newAppUuid || Object.keys(st.dbs ?? {}).length > 0;
   const lines = log.split("\n").filter(Boolean);
@@ -60,7 +62,7 @@ export default function MigrationPage({ params }: { params: Promise<{ id: string
     const alive = list.filter((x) => x.status !== "deleted");
     const off = !live || !!busy || status === "running" || alive.length === 0 ||
       (op === "stop" && !alive.some(running)) || (op === "start" && alive.every(running));
-    return <button key={op} className={`btn ${danger ? "btn-danger" : ""}`} disabled={off} onClick={() => act(side, op)}>{busy === `${op} ${side}` ? "…" : op}</button>;
+    return <button key={op} className={`btn ${danger ? "btn-danger" : ""}`} disabled={off} onClick={() => act(side, op)}>{busy === `${op} ${side}` && <Spinner />}{op}</button>;
   };
   const badge = (x: Res) => (
     <div key={x.uuid} className="flex items-center gap-2 text-sm py-1">
@@ -91,13 +93,13 @@ export default function MigrationPage({ params }: { params: Promise<{ id: string
         <div className="panel p-4">
           <div className="flex items-center justify-between mb-2"><span className="panel-title">Source</span><span className="mono" style={{ color: "var(--dim)" }}>{req.appUuid ? "app + " : ""}{req.dbUuids.length} db</span></div>
           <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>Stop once the new copy is verified and DNS has moved. Start again to roll back. Delete only after a few quiet days.</p>
-          <div className="mb-3">{live ? live.source.map(badge) : <span className="text-sm" style={{ color: "var(--dim)" }}>checking state…</span>}</div>
+          <div className="mb-3">{live ? live.source.map(badge) : <span className="text-sm flex items-center gap-2" style={{ color: "var(--dim)" }}><Spinner /> checking state</span>}</div>
           <div className="flex gap-2">{btn("source", "stop")}{btn("source", "start")}{btn("source", "delete", true)}</div>
         </div>
         <div className="panel p-4">
           <div className="flex items-center justify-between mb-2"><span className="panel-title">Destination copy</span></div>
           <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>{hasDest ? "Delete removes everything this migration created, for a clean rerun." : "Nothing was created on the destination."}</p>
-          <div className="mb-3">{live ? live.destination.map(badge) : hasDest && <span className="text-sm" style={{ color: "var(--dim)" }}>checking state…</span>}</div>
+          <div className="mb-3">{live ? live.destination.map(badge) : hasDest && <span className="text-sm flex items-center gap-2" style={{ color: "var(--dim)" }}><Spinner /> checking state</span>}</div>
           {hasDest && <div className="flex gap-2">{btn("destination", "stop")}{btn("destination", "start")}{btn("destination", "delete", true)}</div>}
         </div>
       </div>

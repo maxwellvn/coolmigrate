@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Empty, SkeletonRows, Spinner, useUI } from "./ui";
 
 type Inst = { id: number; name: string; url: string; ssh_host: string };
 type App = { uuid: string; name: string; environment_id: number; status: string; fqdn: string | null; build_pack: string; git_repository: string | null; source_id: number | null };
@@ -13,6 +14,7 @@ const running = (s: string) => String(s).startsWith("running");
 
 export default function Migrate() {
   const router = useRouter();
+  const ui = useUI();
   const [insts, setInsts] = useState<Inst[] | null>(null);
   const [recent, setRecent] = useState<Recent[]>([]);
   const [srcId, setSrcId] = useState(0); const [dstId, setDstId] = useState(0);
@@ -66,7 +68,8 @@ export default function Migrate() {
       destProjectUuid: project, destProjectName: projectName, destEnvironmentName: env, destGithubAppUuid: isPublicSource ? null : ghApp || null, deploy, copyDomains,
     }) });
     const j = await r.json(); setBusy(false);
-    if (!r.ok) return setErr(j.error);
+    if (!r.ok) { setErr(j.error); ui.toast("bad", j.error); return; }
+    ui.toast("ok", "Migration started");
     router.push(`/migrations/${j.id}`);
   }
 
@@ -80,11 +83,11 @@ export default function Migrate() {
     </label>
   );
 
-  if (insts === null) return <p style={{ color: "var(--muted)" }}>Loading…</p>;
+  if (insts === null) return <div><div className="page-head"><div><h1>Migrate</h1><p>Pick what to move and where.</p></div></div><div className="grid md:grid-cols-2 gap-6"><div className="panel"><SkeletonRows n={2} /></div><div className="panel"><SkeletonRows n={2} /></div></div></div>;
   if (insts.length === 0) return (
     <div>
       <div className="page-head"><div><h1>Migrate</h1><p>Copy an app and its databases to another Coolify server.</p></div></div>
-      <div className="panel empty"><b>No Coolify instances yet</b>Add your first one in Settings, or import a config file from a colleague.<div className="mt-4"><Link href="/settings" className="btn btn-primary">Open Settings</Link></div></div>
+      <div className="panel"><Empty title="No Coolify instances yet" action={<Link href="/settings" className="btn btn-primary">Open Settings</Link>}>Add your first one in Settings, or import a config file from a colleague.</Empty></div>
     </div>
   );
 
@@ -104,12 +107,13 @@ export default function Migrate() {
             <div className="panel-head"><span className="panel-title">Source instance</span>{loading === "src" && <span className="pill run">loading</span>}</div>
             <div className="p-4"><select value={srcId} onChange={(e) => pickSrc(+e.target.value)}><option value={0}>Choose an instance…</option>{insts.map((i) => <option key={i.id} value={i.id}>{i.name} · {i.url.replace(/^https?:\/\//, "")}</option>)}</select></div>
           </div>
+          {loading === "src" && <div className="panel"><SkeletonRows n={5} /></div>}
           {src && (<>
             <div className="panel">
               <div className="panel-head"><span className="panel-title">Application <span style={{ color: "var(--dim)", fontWeight: 400 }}>optional</span></span><span className="mono" style={{ color: "var(--muted)" }}>{src.apps.length}</span></div>
               <div className="px-4 pt-3 pb-2"><input placeholder="Filter by name" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
               <div className="max-h-72 overflow-auto">
-                {apps.length === 0 && <div className="empty">No apps match.</div>}
+                {apps.length === 0 && <Empty title={filter ? "No apps match" : "No applications"}>{filter ? "Try another name." : "This instance has no apps. You can still move databases."}</Empty>}
                 {apps.map((a) => (
                   <label key={a.uuid} className="row cursor-pointer" style={{ marginBottom: 0 }}>
                     <input type="radio" name="app" checked={appUuid === a.uuid} onChange={() => pickApp(a)} />
@@ -134,6 +138,7 @@ export default function Migrate() {
             <div className="panel-head"><span className="panel-title">Destination instance</span>{loading === "dst" && <span className="pill run">loading</span>}</div>
             <div className="p-4"><select value={dstId} onChange={(e) => pickDst(+e.target.value)}><option value={0}>Choose an instance…</option>{insts.map((i) => <option key={i.id} value={i.id}>{i.name} · {i.url.replace(/^https?:\/\//, "")}</option>)}</select></div>
           </div>
+          {loading === "dst" && <div className="panel"><SkeletonRows n={4} /></div>}
           {dst && (<>
             <div className="panel p-4 space-y-4">
               <div><label>Server</label><select value={server} onChange={(e) => setServer(e.target.value)}>{dst.servers.map((s) => <option key={s.uuid} value={s.uuid}>{s.name} ({s.ip})</option>)}</select></div>
@@ -164,7 +169,7 @@ export default function Migrate() {
               </div>
               <div className="p-4" style={{ borderTop: "1px solid var(--line)" }}>
                 {err && <p className="mb-3 text-sm" style={{ color: "var(--bad)" }}>{err}</p>}
-                <button className="btn btn-primary btn-lg w-full" disabled={busy || !ready} onClick={go}>{busy ? "Starting…" : "Start migration"}</button>
+                <button className="btn btn-primary btn-lg w-full" disabled={busy || !ready} onClick={go}>{busy && <Spinner />}{busy ? "Starting" : "Start migration"}</button>
               </div>
             </div>
           </>)}

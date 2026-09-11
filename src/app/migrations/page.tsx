@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listMigrations } from "@/lib/db";
+import { Empty } from "../ui";
 export const dynamic = "force-dynamic";
 export default function History() {
   const list = listMigrations();
@@ -13,7 +14,7 @@ export default function History() {
       <div className="panel stat"><div className="k">Running</div><div className="v" style={{ color: n("running") ? "var(--warn)" : undefined }}>{n("running")}</div></div>
     </div>
     <div className="panel">
-      {list.length === 0 && <div className="empty"><b>Nothing yet</b>Start a migration and it shows up here.</div>}
+      {list.length === 0 && <Empty title="No migrations yet" action={<Link href="/" className="btn btn-primary">Start one</Link>}>Every run is logged here with its checkpoint and controls.</Empty>}
       {list.map((m) => (<Link key={m.id} href={`/migrations/${m.id}`} className="row">
         <span className={`dot ${m.status === "done" ? "ok" : m.status === "failed" ? "bad" : "run"}`} />
         <span className="mono" style={{ color: "var(--dim)", width: 36 }}>#{m.id}</span>
