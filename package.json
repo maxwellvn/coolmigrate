@@ -55,5 +55,6 @@
     "postgres",
     "mysql",
     "mongodb"
-  ]
+  ],
+  "author": "Movor (https://movortech.com)"
 }

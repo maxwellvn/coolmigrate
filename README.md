@@ -40,3 +40,6 @@ The source is never changed. After verifying the new copy, point DNS at the new 
 ## Security
 
 Tokens and passwords are stored AES-256-GCM encrypted in `~/.coolmigrate/app.db`, keyed by `~/.coolmigrate/secret` (generated on first run, or `APP_SECRET` if set). The app has no login screen: run it on your own machine or put it behind an authenticating proxy before exposing it.
+
+---
+Built by [Movor](https://movortech.com).
