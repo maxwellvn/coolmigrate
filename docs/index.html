@@ -56,8 +56,11 @@
   .row .n{font-family:var(--mono);font-size:12px;color:var(--slate)}
   .row p{margin:0;color:var(--fog);font-size:14px}
   .split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
-  .kv{font-family:var(--mono);font-size:12.5px;line-height:1.9;color:var(--fog)}
-  .kv b{color:var(--white);font-weight:500}
+  #safety .split{align-items:center}
+  .facts{margin:0;border-top:1px solid var(--graphite)}
+  .facts div{display:grid;grid-template-columns:110px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--graphite)}
+  .facts dt{font-family:var(--mono);font-size:12px;color:var(--white);padding-top:2px}
+  .facts dd{margin:0;font-size:14px;color:var(--fog);line-height:1.5}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin-right:8px;vertical-align:middle}
   footer{border-top:1px solid var(--graphite);padding:60px 0 40px}
   .big{font-weight:300;font-size:clamp(48px,10vw,120px);letter-spacing:-0.03em;line-height:.9;color:var(--white);margin:0 0 40px}
@@ -139,14 +142,15 @@
       <h2 class="reveal">The source is never modified.</h2>
       <p class="lede reveal">A migration is a copy. You verify the new one, move DNS, then stop the old one from the same page. Start it again if something is wrong. Delete only when you type the word.</p>
     </div>
-    <div class="kv reveal">
-      <b>resume</b>  every completed step is checkpointed; a failed run continues where it stopped<br>
-      <b>preflight</b>  disk, memory and server reachability checked before anything is created<br>
-      <b>sanitize</b>  identifiers and passwords the API rejects are adjusted and logged, env vars follow<br>
-      <b>state</b>  live status of every resource on both sides, buttons enable only when they make sense<br>
-      <b>secrets</b>  tokens and passwords AES-256-GCM encrypted on disk, server bound to localhost<br>
-      <b>leftovers</b>  anything created before a failure is listed, and removable with one action
-    </div>
+    <dl class="facts reveal">
+      <div><dt>Resume</dt><dd>Every completed step is checkpointed. A failed run continues from where it stopped.</dd></div>
+      <div><dt>Preflight</dt><dd>Disk, memory and server reachability are checked before anything is created.</dd></div>
+      <div><dt>Sanitize</dt><dd>Identifiers and passwords the API rejects are adjusted and logged. Env vars follow.</dd></div>
+      <div><dt>Live state</dt><dd>Both sides show current status. Buttons enable only when the action makes sense.</dd></div>
+      <div><dt>Secrets</dt><dd>Tokens and passwords AES-256-GCM encrypted on disk. Server bound to localhost.</dd></div>
+      <div><dt>Leftovers</dt><dd>Anything created before a failure is listed and removable with one action.</dd></div>
+    </dl>
+  </div>
   </div>
 </section>
 
