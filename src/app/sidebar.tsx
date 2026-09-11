@@ -18,7 +18,7 @@ export function Sidebar() {
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{i.icon}</svg>{i.label}
         </Link>
       ))}
-      <div className="foot">v0.1 · Built by <a href="https://movortech.com" target="_blank" rel="noreferrer" style={{ color: "var(--muted)" }}>Movor</a></div>
+      <a className="foot byline" href="https://movortech.com" target="_blank" rel="noreferrer">Built by <b>Movor</b><span>movortech.com</span></a>
     </aside>
   );
 }
