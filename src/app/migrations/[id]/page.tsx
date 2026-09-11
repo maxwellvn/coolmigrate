@@ -66,28 +66,36 @@ export default function MigrationPage({ params }: { params: Promise<{ id: string
     <div key={x.uuid} className="flex items-center gap-2 text-sm py-1">
       <span className={`dot ${running(x) ? "ok" : x.status === "deleted" ? "" : "bad"}`} />
       <span className="flex-1 truncate">{x.name}</span>
-      <span className="mono" style={{ color: "var(--muted)" }}>{x.kind} · {x.status}</span>
+      <span className="pill">{x.kind}</span>
+      <span className={`pill ${running(x) ? "ok" : x.status === "deleted" ? "" : "bad"}`}>{x.status}</span>
     </div>
   );
   return (<div>
-    <p className="eyebrow mb-1">Migration #{m.id}</p>
-    <h1 className="text-lg font-semibold mb-4"><span className={`dot ${dot}`} />{m.title} <span className="mono ml-2" style={{ color: "var(--muted)" }}>{status}</span></h1>
-    {status === "failed" && <button className="btn btn-primary mb-3" onClick={resume}>Resume from last completed step</button>}
-    <pre ref={pre} className="panel mono p-4 max-h-[60vh] overflow-auto whitespace-pre-wrap leading-5">
-      {lines.length === 0 && <span style={{ color: "var(--dim)" }}>waiting for first log line…</span>}
-      {lines.map((l, i) => <div key={i} style={{ color: cls(l) }}>{l}</div>)}
-      {status === "running" && <div style={{ color: "var(--warn)" }}>▍</div>}
-    </pre>
+    <div className="page-head">
+      <div><p className="eyebrow mb-2">Migration #{m.id}</p><h1 className="flex items-center gap-3"><span className={`dot ${dot}`} />{m.title}</h1></div>
+      <div className="flex items-center gap-2">
+        <span className={`pill ${dot}`}>{status}</span>
+        {status === "failed" && <button className="btn btn-primary" onClick={resume}>Resume from last step</button>}
+      </div>
+    </div>
+    <div className="log">
+      <div className="panel-head"><span className="panel-title">Log</span><span className="mono" style={{ color: "var(--dim)" }}>{lines.length} lines{status === "running" ? " · live" : ""}</span></div>
+      <pre ref={pre} className="mono max-h-[60vh] overflow-auto">
+        {lines.length === 0 && <span style={{ color: "var(--dim)" }}>waiting for first log line…</span>}
+        {lines.map((l, i) => <div key={i} style={{ color: cls(l) }}>{l}</div>)}
+        {status === "running" && <div style={{ color: "var(--warn)" }}>▍</div>}
+      </pre>
+    </div>
     {status !== "running" && (
-      <div className="grid md:grid-cols-2 gap-4 mt-4">
+      <div className="grid md:grid-cols-2 gap-4 mt-6">
         <div className="panel p-4">
-          <p className="eyebrow mb-2">Source ({req.appUuid ? "app + " : ""}{req.dbUuids.length} db)</p>
+          <div className="flex items-center justify-between mb-2"><span className="panel-title">Source</span><span className="mono" style={{ color: "var(--dim)" }}>{req.appUuid ? "app + " : ""}{req.dbUuids.length} db</span></div>
           <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>Stop once the new copy is verified and DNS has moved. Start again to roll back. Delete only after a few quiet days.</p>
           <div className="mb-3">{live ? live.source.map(badge) : <span className="text-sm" style={{ color: "var(--dim)" }}>checking state…</span>}</div>
           <div className="flex gap-2">{btn("source", "stop")}{btn("source", "start")}{btn("source", "delete", true)}</div>
         </div>
         <div className="panel p-4">
-          <p className="eyebrow mb-2">Destination copy</p>
+          <div className="flex items-center justify-between mb-2"><span className="panel-title">Destination copy</span></div>
           <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>{hasDest ? "Delete removes everything this migration created, for a clean rerun." : "Nothing was created on the destination."}</p>
           <div className="mb-3">{live ? live.destination.map(badge) : hasDest && <span className="text-sm" style={{ color: "var(--dim)" }}>checking state…</span>}</div>
           {hasDest && <div className="flex gap-2">{btn("destination", "stop")}{btn("destination", "start")}{btn("destination", "delete", true)}</div>}
