@@ -22,19 +22,21 @@ if (!fs.existsSync(standalone)) {
   console.error("Build missing. Run `npm run build` in " + root + " (or reinstall the package).");
   process.exit(1);
 }
-const env = { ...process.env, PORT: port, HOSTNAME: host, COOLMIGRATE_HOME: home, NODE_ENV: "production" };
-const child = spawn(process.execPath, [standalone], { env, stdio: "inherit" });
-child.on("exit", (code) => { console.log("coolmigrate stopped."); process.exit(code ?? 0); });
-for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
-
 const url = `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
-const waitThenOpen = (tries = 50) => {
-  http.get(url + "/api/instances", (res) => { res.resume(); ready(); }).on("error", () => tries > 0 ? setTimeout(() => waitThenOpen(tries - 1), 200) : ready());
-};
-const ready = () => {
-  console.log(`coolmigrate running at ${url}  (data: ${home})  Ctrl+C to stop`);
+const open = () => {
   if (args.includes("--no-open")) return;
   const opener = process.platform === "darwin" ? ["open", url] : process.platform === "win32" ? ["cmd", "/c", "start", "", url] : ["xdg-open", url];
-  try { execFileSync(opener[0], opener.slice(1), { stdio: "ignore" }); } catch { /* headless box: URL is printed above */ }
+  try { execFileSync(opener[0], opener.slice(1), { stdio: "ignore" }); } catch { /* headless box: URL is printed */ }
 };
-waitThenOpen();
+const probe = (cb) => http.get(url + "/api/instances", { timeout: 1500 }, (res) => { res.resume(); cb(true); }).on("error", () => cb(false)).on("timeout", function () { this.destroy(); cb(false); });
+
+probe((alreadyUp) => {
+  if (alreadyUp) { console.log(`coolmigrate is already running at ${url}. Opening it. (Stop it from Settings, or use --port for a second instance.)`); open(); return; }
+  const env = { ...process.env, PORT: port, HOSTNAME: host, COOLMIGRATE_HOME: home, NODE_ENV: "production" };
+  const child = spawn(process.execPath, [standalone], { env, stdio: "inherit" });
+  child.on("exit", (code) => { console.log("coolmigrate stopped."); process.exit(code ?? 0); });
+  for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
+  const wait = (tries) => probe((up) => up ? ready() : tries > 0 ? setTimeout(() => wait(tries - 1), 200) : console.error("server did not answer; see errors above"));
+  const ready = () => { console.log(`coolmigrate running at ${url}  (data: ${home})  Ctrl+C to stop`); open(); };
+  wait(75);
+});
