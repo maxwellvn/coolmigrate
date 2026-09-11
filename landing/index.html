@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coolmigrate — move apps between Coolify servers in one click</title>
+<meta name="description" content="coolmigrate copies an application, its databases, env vars and upload folders from one Coolify server to another. Streams progress, checks disk first, resumes on failure, never touches the source.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--obsidian:#000;--carbon:#08090b;--graphite:#232323;--slate:#89898d;--fog:#b3b3b5;--bone:#ddd;--white:#fff;--green:#3ddc84;--red:#ff5c5c;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--obsidian);color:var(--bone);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+  nav{height:56px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:15px;color:var(--white)}
+  .brand img{width:26px;height:26px;border-radius:6px}
+  nav .links{display:flex;gap:28px;font-size:14px;font-weight:500;color:var(--fog)}
+  nav .links a:hover{color:var(--white)}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:18px;padding:9px 14px;font-size:14px;font-weight:500;border:1px solid var(--graphite);background:var(--carbon);color:var(--white);transition:border-color .15s,background .15s}
+  .btn:hover{border-color:var(--slate)}
+  .btn.light{background:var(--white);color:var(--carbon);border-color:var(--white)}.btn.light:hover{background:#e8e8ea}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--fog)}.btn.ghost:hover{color:var(--white)}
+  section{padding:80px 0}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);margin-bottom:16px}
+  h1{font-weight:300;font-size:clamp(40px,7vw,60px);line-height:.98;letter-spacing:-0.028em;color:var(--white);margin:0 0 20px;max-width:14ch}
+  h2{font-weight:300;font-size:36px;line-height:1.2;letter-spacing:-0.018em;color:var(--white);margin:0 0 12px}
+  h3{font-weight:500;font-size:17px;letter-spacing:-0.009em;color:var(--white);margin:0 0 6px}
+  .lede{font-size:18px;line-height:1.4;color:var(--fog);max-width:56ch;margin:0 0 32px}
+  .muted{color:var(--fog)}
+  .hero{padding:96px 0 72px;border-bottom:1px solid var(--graphite)}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center}
+  .install{display:flex;align-items:center;gap:12px;background:var(--carbon);border:1px solid var(--graphite);border-radius:12px;padding:12px 14px;font-family:var(--mono);font-size:14px;color:var(--white);max-width:520px}
+  .install span.p{color:var(--slate)}
+  .install button{margin-left:auto;background:none;border:1px solid var(--graphite);color:var(--fog);border-radius:8px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}
+  .install button:hover{color:var(--white);border-color:var(--slate)}
+  .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+  /* terminal */
+  .term{background:var(--carbon);border:1px solid var(--graphite);border-radius:12px;overflow:hidden;font-family:var(--mono);font-size:12.5px;line-height:1.7}
+  .term .bar{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--graphite)}
+  .term .bar i{width:10px;height:10px;border-radius:50%;background:var(--graphite);display:block}
+  .term pre{margin:0;padding:16px 18px;white-space:pre-wrap;color:var(--fog)}
+  .term .t{color:var(--slate)}.term .h{color:var(--white)}.term .ok{color:var(--green)}.term .dim{color:#5c5c60}
+  .cursor{display:inline-block;width:7px;height:14px;background:var(--green);vertical-align:-2px;animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  /* grid cards */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .card{background:var(--carbon);border:1px solid var(--graphite);border-radius:24px;padding:24px}
+  .card .n{font-family:var(--mono);font-size:11px;color:var(--slate);margin-bottom:14px}
+  .card p{margin:0;color:var(--fog);font-size:14px}
+  /* rows */
+  .rows{border-top:1px solid var(--graphite)}
+  .row{display:grid;grid-template-columns:60px 1fr 1.4fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--graphite);align-items:baseline}
+  .row .n{font-family:var(--mono);font-size:12px;color:var(--slate)}
+  .row p{margin:0;color:var(--fog);font-size:14px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+  .kv{font-family:var(--mono);font-size:12.5px;line-height:1.9;color:var(--fog)}
+  .kv b{color:var(--white);font-weight:500}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin-right:8px;vertical-align:middle}
+  footer{border-top:1px solid var(--graphite);padding:60px 0 40px}
+  .big{font-weight:300;font-size:clamp(48px,10vw,120px);letter-spacing:-0.03em;line-height:.9;color:var(--white);margin:0 0 40px}
+  .foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:13px;color:var(--slate)}
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (max-width:860px){.hero-grid,.split{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.row{grid-template-columns:40px 1fr}.row p{grid-column:2}nav .links{display:none}section{padding:56px 0}}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.cursor{animation:none}}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <nav>
+    <a class="brand" href="#"><img src="logo.svg" alt="coolmigrate logo">coolmigrate</a>
+    <div class="links"><a href="#how">How it works</a><a href="#safety">Safety</a><a href="#cli">CLI</a><a href="https://github.com/maxwellvn/coolmigrate">GitHub</a></div>
+    <a class="btn light" href="#install">Install</a>
+  </nav>
+</header>
+
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <p class="eyebrow"><span class="dot"></span>For Coolify 4.x</p>
+      <h1>Move an app to another server. One click.</h1>
+      <p class="lede">coolmigrate copies an application, its databases, env vars and upload folders from one Coolify server to another, streams every step, and leaves the original untouched until you say so.</p>
+      <div class="install" id="install"><span class="p">$</span><span id="cmd">npm i -g coolmigrate && coolmigrate</span><button onclick="navigator.clipboard.writeText(document.getElementById('cmd').textContent);this.textContent='copied'">copy</button></div>
+      <div class="actions"><a class="btn" href="#how">See what it does</a><a class="btn ghost" href="https://github.com/maxwellvn/coolmigrate">Source on GitHub →</a></div>
+    </div>
+    <div class="term" aria-label="Example migration log">
+      <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="t">[19:53:56]</span> <span class="h">[1/6] preflight</span>
+<span class="t">[19:53:56]</span> destination server1: 15005 MB disk free, 2585 MB memory. Data to move: ~17 MB
+<span class="t">[19:53:56]</span> <span class="h">[2/6] project and environment</span>
+<span class="t">[19:53:56]</span> <span class="ok">created project "kcblast"</span>
+<span class="t">[19:54:00]</span> <span class="h">[4/6] application</span>
+<span class="t">[19:54:00]</span> <span class="ok">created app "kcblast" -> u69tx54u2xz312a5voo9slcu</span>
+<span class="t">[19:54:44]</span> <span class="dim">    16.9 MB in 43.8 s</span>
+<span class="t">[19:54:44]</span> <span class="ok">  directory /app/cache copied</span>
+<span class="t">[19:54:45]</span> <span class="ok">copied 5 env vars (DB hosts rewritten)</span>
+<span class="t">[20:35:08]</span>   Building docker image started.
+<span class="t">[20:36:06]</span>   Rolling update completed.
+<span class="t">[20:36:07]</span> <span class="ok">app status: running</span>
+<span class="t">[20:36:07]</span> done. Source untouched. <span class="cursor"></span></pre>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="what">
+  <p class="eyebrow reveal">What gets copied</p>
+  <h2 class="reveal">Everything Coolify knows about the app.</h2>
+  <p class="lede reveal">Not a screenshot of settings. The actual definition, data and files, recreated through the Coolify API and streamed over SSH.</p>
+  <div class="cards">
+    <div class="card reveal"><div class="n">01</div><h3>Application</h3><p>Repo, branch, build pack, Dockerfile path, ports, health check, resource limits, pre and post deploy commands, domains.</p></div>
+    <div class="card reveal"><div class="n">02</div><h3>Databases</h3><p>PostgreSQL, MySQL, MariaDB, MongoDB, Redis. Same image and credentials. Dump piped straight from container to container, no temp files.</p></div>
+    <div class="card reveal"><div class="n">03</div><h3>Env vars</h3><p>All of them, with database hostnames and any renamed credentials rewritten to point at the new copies.</p></div>
+    <div class="card reveal"><div class="n">04</div><h3>Storage</h3><p>Persistent volumes and upload directories tar-streamed into place before the first deploy, so nothing is missing on first boot.</p></div>
+    <div class="card reveal"><div class="n">05</div><h3>Build log</h3><p>Coolify's own deployment log tails into the same view, line by line, until the app reports running.</p></div>
+    <div class="card reveal"><div class="n">06</div><h3>Verification</h3><p>Table, collection and key counts compared between source and destination. Mismatches are flagged, not hidden.</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="how">
+  <p class="eyebrow reveal">How it works</p>
+  <h2 class="reveal">Six steps, each one logged.</h2>
+  <div class="rows" style="margin-top:32px">
+    <div class="row reveal"><span class="n">1 / 6</span><h3>Preflight</h3><p>Measures the data to move, checks free disk and memory on the destination, confirms Coolify can actually reach that server. Refuses early instead of failing late.</p></div>
+    <div class="row reveal"><span class="n">2 / 6</span><h3>Project and environment</h3><p>Creates or reuses the destination project and environment.</p></div>
+    <div class="row reveal"><span class="n">3 / 6</span><h3>Databases</h3><p>Creates each database with the same engine and image, waits until it answers, then streams the dump in. Redis snapshots are installed so an append-only instance loads them correctly.</p></div>
+    <div class="row reveal"><span class="n">4 / 6</span><h3>Application</h3><p>Recreates the app definition through the API, bound to a GitHub App on the destination that can see the repo.</p></div>
+    <div class="row reveal"><span class="n">5 / 6</span><h3>Storage and env vars</h3><p>Registers every mount, copies the files, then pushes env vars with hostnames rewritten.</p></div>
+    <div class="row reveal"><span class="n">6 / 6</span><h3>Deploy</h3><p>Queues the deployment and tails Coolify's build log until the app is running.</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="safety">
+  <div class="split">
+    <div>
+      <p class="eyebrow reveal">Safety</p>
+      <h2 class="reveal">The source is never modified.</h2>
+      <p class="lede reveal">A migration is a copy. You verify the new one, move DNS, then stop the old one from the same page. Start it again if something is wrong. Delete only when you type the word.</p>
+    </div>
+    <div class="kv reveal">
+      <b>resume</b>  every completed step is checkpointed; a failed run continues where it stopped<br>
+      <b>preflight</b>  disk, memory and server reachability checked before anything is created<br>
+      <b>sanitize</b>  identifiers and passwords the API rejects are adjusted and logged, env vars follow<br>
+      <b>state</b>  live status of every resource on both sides, buttons enable only when they make sense<br>
+      <b>secrets</b>  tokens and passwords AES-256-GCM encrypted on disk, server bound to localhost<br>
+      <b>leftovers</b>  anything created before a failure is listed, and removable with one action
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="cli">
+  <div class="split">
+    <div>
+      <p class="eyebrow reveal">Install anywhere</p>
+      <h2 class="reveal">One command, then a browser tab.</h2>
+      <p class="lede reveal">Runs on macOS, Linux and Windows with Node 20 or newer. Settings live in your home folder, so the same instances are there every time.</p>
+    </div>
+    <div class="term reveal"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="t">$</span> npm i -g coolmigrate
+<span class="t">$</span> coolmigrate
+coolmigrate running at http://127.0.0.1:3456  (data: ~/.coolmigrate)  Ctrl+C to stop
+
+<span class="dim"># options</span>
+<span class="t">$</span> coolmigrate --port 4000 --no-open
+<span class="t">$</span> coolmigrate --data /srv/coolmigrate</pre></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p class="big reveal">coolmigrate</p>
+    <div class="foot">
+      <span>Built for Coolify 4.1 · MIT</span>
+      <span><a href="https://github.com/maxwellvn/coolmigrate">GitHub</a> · <a href="https://www.npmjs.com/package/coolmigrate">npm</a></span>
+    </div>
+  </div>
+</footer>
+<script>
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .15 });
+  document.querySelectorAll(".reveal").forEach((el, i) => { el.style.transitionDelay = (i % 6) * 40 + "ms"; io.observe(el); });
+</script>
+</body>
+</html>

@@ -1,26 +1,59 @@
 {
-  "name": "coolify-db-mig",
+  "name": "coolmigrate",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "next dev -H 127.0.0.1",
+    "build": "next build && node bin/postbuild.js",
+    "start": "next start -H 127.0.0.1",
+    "lint": "eslint",
+    "prepare": "[ -f .next/standalone/server.js ] || npm run build"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "ssh2": "^1.17.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ssh2": "^1.15.6",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "description": "One-click app and database migration between Coolify servers",
+  "bin": {
+    "coolmigrate": "bin/coolmigrate.js"
+  },
+  "files": [
+    "bin",
+    ".next/standalone",
+    ".next/static",
+    "public",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maxwellvn/coolmigrate"
+  },
+  "homepage": "https://maxwellvn.github.io/coolmigrate/",
+  "keywords": [
+    "coolify",
+    "migration",
+    "docker",
+    "postgres",
+    "mysql",
+    "mongodb"
+  ]
 }
